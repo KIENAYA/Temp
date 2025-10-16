@@ -105,6 +105,12 @@ func main() {
 	log.Println("Flushing remaining messages...")
 	remaining := producer.Flush(30 * 1000) // 30 seconds
 	log.Printf("Flush complete. %d messages remaining\n", remaining)
+	if kafkaError, ok := err.(confluentKafka.Error); ok && kafkaError.Code() == confluentKafka.ErrQueueFull {
+		log.Error("Kafka local queue full error - Going to Flush then retry...")
+		flushedMessages := k.kafkaProducer.Flush(30 * 1000)
+		log.Infof("Flushed kafka messages. Outstanding events still un-flushed: %d", flushedMessages)
+		return k.PublishMessage(ctx, key, payload, topic, headers)
+	}
 }
 
 // produceWithRetry thử gửi message với retry khi queue full
